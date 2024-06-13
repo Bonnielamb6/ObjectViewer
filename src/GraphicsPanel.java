@@ -17,7 +17,7 @@ public class GraphicsPanel extends JPanel {
     private Point3D centerTemporal;
     private static final int PANEL_WIDTH = 600;
     private static final int PANEL_HEIGHT = 590;
-    private double scaleFactor = 5.0; // Factor de escala inicial
+    private double scaleFactor = 1.0; // Factor de escala inicial
     private boolean showTextures = false; // Mostrar texturas inicialmente apagado
 
     public GraphicsPanel() {
@@ -45,13 +45,13 @@ public class GraphicsPanel extends JPanel {
                 switch (e.getKeyCode()) {
                     // MOVE
                     case KeyEvent.VK_W: // up
-                        centerTemporal.setPointY(centerTemporal.getPointY() + 10);
+                        centerTemporal.setPointY(centerTemporal.getPointY() - 10);
                         break;
                     case KeyEvent.VK_A: // left
                         centerTemporal.setPointX(centerTemporal.getPointX() - 10);
                         break;
                     case KeyEvent.VK_S: // down
-                        centerTemporal.setPointY(centerTemporal.getPointY() - 10);
+                        centerTemporal.setPointY(centerTemporal.getPointY() + 10);
                         break;
                     case KeyEvent.VK_D: // right
                         centerTemporal.setPointX(centerTemporal.getPointX() + 10);
@@ -127,14 +127,10 @@ public class GraphicsPanel extends JPanel {
     }
 
     private Color getTextureColor(float u, float v) {
-        u = Math.min(Math.max(u, 0), 1); // Clamping u to the range [0, 1]
-        v = Math.min(Math.max(v, 0), 1); // Clamping v to the range [0, 1]
-
         int x = (int) (u * (texture.getWidth() - 1));
         int y = (int) ((1 - v) * (texture.getHeight() - 1));
         return new Color(texture.getRGB(x, y));
     }
-
 
     public void drawLineDDA(int x0, int y0, int x1, int y1, Color c) {
         int dx = x1 - x0;
@@ -255,92 +251,34 @@ public class GraphicsPanel extends JPanel {
     }
 
     private void drawTexturedTriangle(int[] p1, int[] p2, int[] p3, float[] t1, float[] t2, float[] t3) {
-        // Ordenar los puntos por coordenada Y (p1, p2, p3)
-        if (p1[1] > p2[1]) {
-            int[] tmp = p1; p1 = p2; p2 = tmp;
-            float[] tmpT = t1; t1 = t2; t2 = tmpT;
-        }
-        if (p2[1] > p3[1]) {
-            int[] tmp = p2; p2 = p3; p3 = tmp;
-            float[] tmpT = t2; t2 = t3; t3 = tmpT;
-        }
-        if (p1[1] > p2[1]) {
-            int[] tmp = p1; p1 = p2; p2 = tmp;
-            float[] tmpT = t1; t1 = t2; t2 = tmpT;
-        }
+        int minX = Math.min(p1[0], Math.min(p2[0], p3[0]));
+        int maxX = Math.max(p1[0], Math.max(p2[0], p3[0]));
+        int minY = Math.min(p1[1], Math.min(p2[1], p3[1]));
+        int maxY = Math.max(p1[1], Math.max(p2[1], p3[1]));
 
-        // Calcular las pendientes
-        float invslope1 = (p2[0] - p1[0]) / (float)(p2[1] - p1[1]);
-        float invslope2 = (p3[0] - p1[0]) / (float)(p3[1] - p1[1]);
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = minX; x <= maxX; x++) {
+                float[] barycentricCoords = getBarycentricCoordinates(p1, p2, p3, x, y);
+                float alpha = barycentricCoords[0];
+                float beta = barycentricCoords[1];
+                float gamma = barycentricCoords[2];
 
-        // Calcular las pendientes de las coordenadas de textura
-        float invslopeU1 = (t2[0] - t1[0]) / (p2[1] - p1[1]);
-        float invslopeU2 = (t3[0] - t1[0]) / (p3[1] - p1[1]);
-        float invslopeV1 = (t2[1] - t1[1]) / (p2[1] - p1[1]);
-        float invslopeV2 = (t3[1] - t1[1]) / (p3[1] - p1[1]);
-
-        float curx1 = p1[0];
-        float curx2 = p1[0];
-
-        float curu1 = t1[0];
-        float curu2 = t1[0];
-        float curv1 = t1[1];
-        float curv2 = t1[1];
-
-        // Desde y1 hasta y2
-        for (int scanlineY = p1[1]; scanlineY <= p2[1]; scanlineY++) {
-            drawScanline(scanlineY, (int)curx1, (int)curx2, curu1, curu2, curv1, curv2);
-            curx1 += invslope1;
-            curx2 += invslope2;
-            curu1 += invslopeU1;
-            curu2 += invslopeU2;
-            curv1 += invslopeV1;
-            curv2 += invslopeV2;
-        }
-
-        // Calcular la nueva pendiente
-        invslope1 = (p3[0] - p2[0]) / (float)(p3[1] - p2[1]);
-        invslopeU1 = (t3[0] - t2[0]) / (p3[1] - p2[1]);
-        invslopeV1 = (t3[1] - t2[1]) / (p3[1] - p2[1]);
-
-        curx1 = p2[0];
-        curu1 = t2[0];
-        curv1 = t2[1];
-
-        // Desde y2 hasta y3
-        for (int scanlineY = p2[1]; scanlineY <= p3[1]; scanlineY++) {
-            drawScanline(scanlineY, (int)curx1, (int)curx2, curu1, curu2, curv1, curv2);
-            curx1 += invslope1;
-            curx2 += invslope2;
-            curu1 += invslopeU1;
-            curu2 += invslopeU2;
-            curv1 += invslopeV1;
-            curv2 += invslopeV2;
-        }
-    }
-
-    private void drawScanline(int y, int x1, int x2, float u1, float u2, float v1, float v2) {
-        if (x1 > x2) {
-            int tmpX = x1; x1 = x2; x2 = tmpX;
-            float tmpU = u1; u1 = u2; u2 = tmpU;
-            float tmpV = v1; v1 = v2; v2 = tmpV;
-        }
-
-        float invslopeU = (u2 - u1) / (x2 - x1);
-        float invslopeV = (v2 - v1) / (x2 - x1);
-
-        float curU = u1;
-        float curV = v1;
-
-        for (int x = x1; x <= x2; x++) {
-            if (x >= 0 && x < buffer.getWidth() && y >= 0 && y < buffer.getHeight()) {
-                putPixel(x, y, getTextureColor(curU, curV));
+                if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                    float u = alpha * t1[0] + beta * t2[0] + gamma * t3[0];
+                    float v = alpha * t1[1] + beta * t2[1] + gamma * t3[1];
+                    putPixel(x, y, getTextureColor(u, v));
+                }
             }
-            curU += invslopeU;
-            curV += invslopeV;
         }
     }
 
+    private float[] getBarycentricCoordinates(int[] p1, int[] p2, int[] p3, int px, int py) {
+        float det = (p2[1] - p3[1]) * (p1[0] - p3[0]) + (p3[0] - p2[0]) * (p1[1] - p3[1]);
+        float alpha = ((p2[1] - p3[1]) * (px - p3[0]) + (p3[0] - p2[0]) * (py - p3[1])) / det;
+        float beta = ((p3[1] - p1[1]) * (px - p3[0]) + (p1[0] - p3[0]) * (py - p3[1])) / det;
+        float gamma = 1 - alpha - beta;
+        return new float[]{alpha, beta, gamma};
+    }
 
     @Override
     protected void paintComponent(Graphics g) {
