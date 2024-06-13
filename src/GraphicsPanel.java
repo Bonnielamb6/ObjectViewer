@@ -17,13 +17,18 @@ public class GraphicsPanel extends JPanel {
     private Point3D centerTemporal;
     private static final int PANEL_WIDTH = 600;
     private static final int PANEL_HEIGHT = 590;
-    private double scaleFactor = 1.0; // Factor de escala inicial
+    private double scaleFactor = 5.0; // Factor de escala inicial
     private boolean showTextures = false; // Mostrar texturas inicialmente apagado
+    private boolean paintBlue = false; // Pintar objeto de color celeste
+    private String[] objectsList = {"miku01.obj","Miku.obj",};
+    private String[] texturesList = {};
+
 
     public GraphicsPanel() {
         buffer = new BufferedImage(PANEL_WIDTH, PANEL_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         setPreferredSize(new Dimension(PANEL_WIDTH, PANEL_HEIGHT));
         setFocusable(true);
+        setBackground(Color.black);
 
         // Inicializamos los centros
         center = new Point3D(0, 0, 0, 100);
@@ -31,8 +36,8 @@ public class GraphicsPanel extends JPanel {
 
         objParser = new ObjParser();
         try {
-            objParser.parse("miku01.obj");
-            texture = ImageIO.read(new File("miku01_tex.png"));
+            objParser.parse("Miku.obj");
+            texture = ImageIO.read(new File("Miku_tex.png"));
             drawModel();
         } catch (IOException e) {
             e.printStackTrace();
@@ -110,9 +115,15 @@ public class GraphicsPanel extends JPanel {
                     // TEXTURES
                     case KeyEvent.VK_1: // Mostrar solo enmallado
                         showTextures = false;
+                        paintBlue = false; // Asegurar que no se pinte de celeste
                         break;
                     case KeyEvent.VK_2: // Mostrar texturas
                         showTextures = true;
+                        paintBlue = false; // Asegurar que no se pinte de celeste
+                        break;
+                    case KeyEvent.VK_3: // Pintar objeto de color celeste
+                        paintBlue = true;
+                        showTextures = false; // Asegurar que no se muestren texturas
                         break;
                 }
                 drawModel();
@@ -178,16 +189,46 @@ public class GraphicsPanel extends JPanel {
             int[] p2Int = {(int) p2.getX(), (int) p2.getY()};
             int[] p3Int = {(int) p3.getX(), (int) p3.getY()};
 
-            if (showTextures) {
+            if (paintBlue) {
+                drawTriangle(p1Int, p2Int, p3Int, Color.CYAN);
+            } else if (showTextures) {
                 drawTexturedTriangle(p1Int, p2Int, p3Int, t1, t2, t3);
             } else {
-                drawLineDDA(p1Int[0], p1Int[1], p2Int[0], p2Int[1], Color.BLACK);
-                drawLineDDA(p2Int[0], p2Int[1], p3Int[0], p3Int[1], Color.BLACK);
-                drawLineDDA(p3Int[0], p3Int[1], p1Int[0], p1Int[1], Color.BLACK);
+                drawLineDDA(p1Int[0], p1Int[1], p2Int[0], p2Int[1], Color.WHITE);
+                drawLineDDA(p2Int[0], p2Int[1], p3Int[0], p3Int[1], Color.WHITE);
+                drawLineDDA(p3Int[0], p3Int[1], p1Int[0], p1Int[1], Color.WHITE);
             }
         }
 
         repaint();
+    }
+
+    private void drawTriangle(int[] p1, int[] p2, int[] p3, Color color) {
+        int minX = Math.min(p1[0], Math.min(p2[0], p3[0]));
+        int maxX = Math.max(p1[0], Math.max(p2[0], p3[0]));
+        int minY = Math.min(p1[1], Math.min(p2[1], p3[1]));
+        int maxY = Math.max(p1[1], Math.max(p2[1], p3[1]));
+
+        for (int y = minY; y <= maxY; y++) {
+            for (int x = minX; x <= maxX; x++) {
+                float[] barycentricCoords = getBarycentricCoordinates(p1, p2, p3, x, y);
+                float alpha = barycentricCoords[0];
+                float beta = barycentricCoords[1];
+                float gamma = barycentricCoords[2];
+
+                if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                    putPixel(x, y, color);
+                }
+            }
+        }
+    }
+
+    private float[] getBarycentricCoordinates(int[] p1, int[] p2, int[] p3, int px, int py) {
+        float det = (p2[1] - p3[1]) * (p1[0] - p3[0]) + (p3[0] - p2[0]) * (p1[1] - p3[1]);
+        float alpha = ((p2[1] - p3[1]) * (px - p3[0]) + (p3[0] - p2[0]) * (py - p3[1])) / det;
+        float beta = ((p3[1] - p1[1]) * (px - p3[0]) + (p1[0] - p3[0]) * (py - p3[1])) / det;
+        float gamma = 1 - alpha - beta;
+        return new float[]{alpha, beta, gamma};
     }
 
     private Point2D transformAndProject(float[] vertex) {
@@ -270,14 +311,6 @@ public class GraphicsPanel extends JPanel {
                 }
             }
         }
-    }
-
-    private float[] getBarycentricCoordinates(int[] p1, int[] p2, int[] p3, int px, int py) {
-        float det = (p2[1] - p3[1]) * (p1[0] - p3[0]) + (p3[0] - p2[0]) * (p1[1] - p3[1]);
-        float alpha = ((p2[1] - p3[1]) * (px - p3[0]) + (p3[0] - p2[0]) * (py - p3[1])) / det;
-        float beta = ((p3[1] - p1[1]) * (px - p3[0]) + (p1[0] - p3[0]) * (py - p3[1])) / det;
-        float gamma = 1 - alpha - beta;
-        return new float[]{alpha, beta, gamma};
     }
 
     @Override
