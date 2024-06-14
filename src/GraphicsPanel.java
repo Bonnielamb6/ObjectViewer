@@ -7,10 +7,13 @@ import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class GraphicsPanel extends JPanel {
     private BufferedImage buffer;
+    private float[][] zBuffer; // Z-buffer
     private BufferedImage texture;
     private ObjParser objParser;
     private Point3D center;
@@ -20,28 +23,47 @@ public class GraphicsPanel extends JPanel {
     private double scaleFactor = 5.0; // Factor de escala inicial
     private boolean showTextures = false; // Mostrar texturas inicialmente apagado
     private boolean paintBlue = false; // Pintar objeto de color celeste
-    private String[] objectsList = {"miku01.obj","Miku.obj",};
-    private String[] texturesList = {};
+    private ArrayList<String> objectsList;
+    private ArrayList<String> texturesList;
+    private int index;
 
 
     public GraphicsPanel() {
         buffer = new BufferedImage(PANEL_WIDTH, PANEL_HEIGHT, BufferedImage.TYPE_INT_ARGB);
+        zBuffer = new float[PANEL_WIDTH][PANEL_HEIGHT]; // Inicializar Z-buffer
         setPreferredSize(new Dimension(PANEL_WIDTH, PANEL_HEIGHT));
         setFocusable(true);
         setBackground(Color.black);
 
+        objectsList = new ArrayList<>();
+        objectsList.add("companionCube.obj");
+        objectsList.add("miku01.obj");
+        objectsList.add("Miku.obj");
+        objectsList.add("len01.obj");
+        //objectsList.add("companionCube.obj");
+
+        texturesList = new ArrayList<>();
+        texturesList.add("companionCube_tex.png");
+        texturesList.add("miku01_tex.png");
+        texturesList.add("Miku_tex.png");
+        texturesList.add("len01_tex.png");
+        //texturesList.add("companionCube_tex.png");
+
+
+        index = 0;
         // Inicializamos los centros
         center = new Point3D(0, 0, 0, 100);
         centerTemporal = new Point3D(0, 0, 0, 100);
 
         objParser = new ObjParser();
         try {
-            objParser.parse("Miku.obj");
-            texture = ImageIO.read(new File("Miku_tex.png"));
+            objParser.parse("companionCube.obj");
+            texture = ImageIO.read(new File("companionCube_tex.png"));
             drawModel();
         } catch (IOException e) {
             e.printStackTrace();
         }
+
 
         addKeyListener(new KeyAdapter() {
             @Override
@@ -119,11 +141,19 @@ public class GraphicsPanel extends JPanel {
                         break;
                     case KeyEvent.VK_2: // Mostrar texturas
                         showTextures = true;
-                        paintBlue = false; // Asegurar que no se pinte de celeste
+                        paintBlue = false; // Asegurar que no se pinten de celeste
                         break;
                     case KeyEvent.VK_3: // Pintar objeto de color celeste
                         paintBlue = true;
                         showTextures = false; // Asegurar que no se muestren texturas
+                        break;
+                    case KeyEvent.VK_9:
+                        index--;
+                        changeObject(index);
+                        break;
+                    case KeyEvent.VK_0:
+                        index++;
+                        changeObject(index);
                         break;
                 }
                 drawModel();
@@ -131,9 +161,37 @@ public class GraphicsPanel extends JPanel {
         });
     }
 
-    public void putPixel(int x, int y, Color c) {
+    private void changeObject(int index) {
+        clearBuffer();
+        objParser = new ObjParser();
+        System.out.println(index);
+        if (index < 0) {
+            this.index = objectsList.size()-1;
+            System.out.println(index);
+            index = this.index;
+        }
+        if (index > objectsList.size()-1) {
+            this.index = 0;
+            System.out.println(index);
+            index = this.index;
+        }
+        System.out.println(objectsList.get(index));
+        System.out.println(texturesList.get(index));
+        try {
+            objParser.parse(objectsList.get(index));
+            texture = ImageIO.read(new File(texturesList.get(index)));
+            drawModel();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void putPixel(int x, int y, float z, Color c) {
         if (x >= 0 && x < buffer.getWidth() && y >= 0 && y < buffer.getHeight()) {
-            buffer.setRGB(x, y, c.getRGB());
+            if (z < zBuffer[x][y]) {
+                zBuffer[x][y] = z;
+                buffer.setRGB(x, y, c.getRGB());
+            }
         }
     }
 
@@ -143,23 +201,26 @@ public class GraphicsPanel extends JPanel {
         return new Color(texture.getRGB(x, y));
     }
 
-    public void drawLineDDA(int x0, int y0, int x1, int y1, Color c) {
+    public void drawLineDDA(int x0, int y0, float z0, int x1, int y1, float z1, Color c) {
         int dx = x1 - x0;
         int dy = y1 - y0;
         int steps = Math.max(Math.abs(dx), Math.abs(dy));
 
         float xinc = (float) dx / steps;
         float yinc = (float) dy / steps;
+        float zinc = (z1 - z0) / steps;
 
         float x = x0;
         float y = y0;
+        float z = z0;
 
-        putPixel(Math.round(x), Math.round(y), c);
+        putPixel(Math.round(x), Math.round(y), z, c);
 
         for (int k = 1; k < steps; k++) {
             x += xinc;
             y += yinc;
-            putPixel(Math.round(x), Math.round(y), c);
+            z += zinc;
+            putPixel(Math.round(x), Math.round(y), z, c);
         }
     }
 
@@ -190,20 +251,20 @@ public class GraphicsPanel extends JPanel {
             int[] p3Int = {(int) p3.getX(), (int) p3.getY()};
 
             if (paintBlue) {
-                drawTriangle(p1Int, p2Int, p3Int, Color.CYAN);
+                drawTriangle(p1Int, p2Int, p3Int, v1[2], v2[2], v3[2], Color.CYAN);
             } else if (showTextures) {
-                drawTexturedTriangle(p1Int, p2Int, p3Int, t1, t2, t3);
+                drawTexturedTriangle(p1Int, p2Int, p3Int, v1[2], v2[2], v3[2], t1, t2, t3);
             } else {
-                drawLineDDA(p1Int[0], p1Int[1], p2Int[0], p2Int[1], Color.WHITE);
-                drawLineDDA(p2Int[0], p2Int[1], p3Int[0], p3Int[1], Color.WHITE);
-                drawLineDDA(p3Int[0], p3Int[1], p1Int[0], p1Int[1], Color.WHITE);
+                drawLineDDA(p1Int[0], p1Int[1], v1[2], p2Int[0], p2Int[1], v2[2], Color.WHITE);
+                drawLineDDA(p2Int[0], p2Int[1], v2[2], p3Int[0], p3Int[1], v3[2], Color.WHITE);
+                drawLineDDA(p3Int[0], p3Int[1], v3[2], p1Int[0], p1Int[1], v1[2], Color.WHITE);
             }
         }
 
         repaint();
     }
 
-    private void drawTriangle(int[] p1, int[] p2, int[] p3, Color color) {
+    private void drawTriangle(int[] p1, int[] p2, int[] p3, float z1, float z2, float z3, Color color) {
         int minX = Math.min(p1[0], Math.min(p2[0], p3[0]));
         int maxX = Math.max(p1[0], Math.max(p2[0], p3[0]));
         int minY = Math.min(p1[1], Math.min(p2[1], p3[1]));
@@ -217,7 +278,8 @@ public class GraphicsPanel extends JPanel {
                 float gamma = barycentricCoords[2];
 
                 if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-                    putPixel(x, y, color);
+                    float z = alpha * z1 + beta * z2 + gamma * z3;
+                    putPixel(x, y, z, color);
                 }
             }
         }
@@ -291,7 +353,7 @@ public class GraphicsPanel extends JPanel {
         return rotated;
     }
 
-    private void drawTexturedTriangle(int[] p1, int[] p2, int[] p3, float[] t1, float[] t2, float[] t3) {
+    private void drawTexturedTriangle(int[] p1, int[] p2, int[] p3, float z1, float z2, float z3, float[] t1, float[] t2, float[] t3) {
         int minX = Math.min(p1[0], Math.min(p2[0], p3[0]));
         int maxX = Math.max(p1[0], Math.max(p2[0], p3[0]));
         int minY = Math.min(p1[1], Math.min(p2[1], p3[1]));
@@ -305,9 +367,10 @@ public class GraphicsPanel extends JPanel {
                 float gamma = barycentricCoords[2];
 
                 if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                    float z = alpha * z1 + beta * z2 + gamma * z3;
                     float u = alpha * t1[0] + beta * t2[0] + gamma * t3[0];
                     float v = alpha * t1[1] + beta * t2[1] + gamma * t3[1];
-                    putPixel(x, y, getTextureColor(u, v));
+                    putPixel(x, y, z, getTextureColor(u, v));
                 }
             }
         }
@@ -325,6 +388,13 @@ public class GraphicsPanel extends JPanel {
         g2d.fillRect(0, 0, buffer.getWidth(), buffer.getHeight());
         g2d.setComposite(AlphaComposite.SrcOver);
         g2d.dispose();
+
+        // Inicializar Z-buffer con valores muy altos (infinito)
+        for (int i = 0; i < PANEL_WIDTH; i++) {
+            for (int j = 0; j < PANEL_HEIGHT; j++) {
+                zBuffer[i][j] = Float.POSITIVE_INFINITY;
+            }
+        }
     }
 
     public static void main(String[] args) {
@@ -342,7 +412,7 @@ public class GraphicsPanel extends JPanel {
             win.pack();
             win.setVisible(true);
 
-            panel.requestFocusInWindow();  // Asegúrate de que el panel tiene el foco del teclado
+            panel.requestFocusInWindow(); // Asegúrate de que el panel tiene el foco del teclado
 
             Point3D point = new Point3D(0, 0, 0, 100);
             panel.setCenter(point);
