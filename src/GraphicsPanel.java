@@ -26,7 +26,7 @@ public class GraphicsPanel extends JPanel {
     private ArrayList<String> objectsList;
     private ArrayList<String> texturesList;
     private int index;
-
+    private boolean hasTexture;
 
     public GraphicsPanel() {
         buffer = new BufferedImage(PANEL_WIDTH, PANEL_HEIGHT, BufferedImage.TYPE_INT_ARGB);
@@ -37,6 +37,9 @@ public class GraphicsPanel extends JPanel {
 
         objectsList = new ArrayList<>();
         objectsList.add("companionCube.obj");
+        objectsList.add("sphere.obj");
+        objectsList.add("cylinder.obj");
+        objectsList.add("cone.obj");
         objectsList.add("miku01.obj");
         objectsList.add("Miku.obj");
         objectsList.add("len01.obj");
@@ -44,6 +47,9 @@ public class GraphicsPanel extends JPanel {
 
         texturesList = new ArrayList<>();
         texturesList.add("companionCube_tex.png");
+        texturesList.add("");
+        texturesList.add("");
+        texturesList.add("");
         texturesList.add("miku01_tex.png");
         texturesList.add("Miku_tex.png");
         texturesList.add("len01_tex.png");
@@ -140,8 +146,11 @@ public class GraphicsPanel extends JPanel {
                         paintBlue = false; // Asegurar que no se pinte de celeste
                         break;
                     case KeyEvent.VK_2: // Mostrar texturas
-                        showTextures = true;
-                        paintBlue = false; // Asegurar que no se pinten de celeste
+                        if (hasTexture) {
+                            showTextures = true;
+                            paintBlue = false; // Asegurar que no se pinten de celeste
+                        }
+
                         break;
                     case KeyEvent.VK_3: // Pintar objeto de color celeste
                         paintBlue = true;
@@ -166,11 +175,11 @@ public class GraphicsPanel extends JPanel {
         objParser = new ObjParser();
         System.out.println(index);
         if (index < 0) {
-            this.index = objectsList.size()-1;
+            this.index = objectsList.size() - 1;
             System.out.println(index);
             index = this.index;
         }
-        if (index > objectsList.size()-1) {
+        if (index > objectsList.size() - 1) {
             this.index = 0;
             System.out.println(index);
             index = this.index;
@@ -179,7 +188,13 @@ public class GraphicsPanel extends JPanel {
         System.out.println(texturesList.get(index));
         try {
             objParser.parse(objectsList.get(index));
-            texture = ImageIO.read(new File(texturesList.get(index)));
+            if (texturesList.get(index).isBlank()) {
+                hasTexture = false;
+            } else {
+                hasTexture = true;
+                texture = ImageIO.read(new File(texturesList.get(index)));
+            }
+
             drawModel();
         } catch (IOException e) {
             e.printStackTrace();
