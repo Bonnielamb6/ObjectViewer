@@ -11,13 +11,22 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GraphicsPanel extends JPanel {
+    private JLabel objectName;
+    private JLabel isShowingTextures;
+    private JLabel isPaintedBlue;
+    private JLabel currentScale;
+    private JLabel currentPosition;
+    private JLabel currentRotationInSite;
+    private JLabel currentRotation;
+    private Font textFont = new Font("Arial", Font.PLAIN, 10);
+
     private BufferedImage buffer;
     private float[][] zBuffer; // Z-buffer
     private BufferedImage texture;
     private ObjParser objParser;
     private Point3D center;
     private Point3D centerTemporal;
-    private static final int PANEL_WIDTH = 600;
+    private static final int PANEL_WIDTH = 700;
     private static final int PANEL_HEIGHT = 590;
     private double scaleFactor = 20.0; // Factor de escala inicial
     private boolean showTextures = false; // Mostrar texturas inicialmente apagado
@@ -76,13 +85,13 @@ public class GraphicsPanel extends JPanel {
                 switch (e.getKeyCode()) {
                     // MOVE
                     case KeyEvent.VK_W: // up
-                        centerTemporal.setPointY(centerTemporal.getPointY() - 10);
+                        centerTemporal.setPointY(centerTemporal.getPointY() + 10);
                         break;
                     case KeyEvent.VK_A: // left
                         centerTemporal.setPointX(centerTemporal.getPointX() - 10);
                         break;
                     case KeyEvent.VK_S: // down
-                        centerTemporal.setPointY(centerTemporal.getPointY() + 10);
+                        centerTemporal.setPointY(centerTemporal.getPointY() - 10);
                         break;
                     case KeyEvent.VK_D: // right
                         centerTemporal.setPointX(centerTemporal.getPointX() + 10);
@@ -121,16 +130,16 @@ public class GraphicsPanel extends JPanel {
                         break;
                     // ROTATE LOCAL
                     case KeyEvent.VK_T:
-                        center.setAngleY(center.getAngleY() + Math.toRadians(10));
-                        break;
-                    case KeyEvent.VK_G:
-                        center.setAngleY(center.getAngleY() - Math.toRadians(10));
-                        break;
-                    case KeyEvent.VK_F:
                         center.setAngleX(center.getAngleX() + Math.toRadians(10));
                         break;
-                    case KeyEvent.VK_H:
+                    case KeyEvent.VK_G:
                         center.setAngleX(center.getAngleX() - Math.toRadians(10));
+                        break;
+                    case KeyEvent.VK_F:
+                        center.setAngleY(center.getAngleY() + Math.toRadians(10));
+                        break;
+                    case KeyEvent.VK_H:
+                        center.setAngleY(center.getAngleY() - Math.toRadians(10));
                         break;
                     case KeyEvent.VK_R:
                         center.setAngleZ(center.getAngleZ() + Math.toRadians(10));
@@ -176,6 +185,77 @@ public class GraphicsPanel extends JPanel {
                 drawModel();
             }
         });
+        initComponents();
+    }
+
+    private void initComponents() {
+        setLayout(null);
+
+        objectName = new JLabel("<html>Current object:<br>" + objectsList.get(index) + "</html>");
+        objectName.setBounds(0, 10, 200, 40); // Ajusta la altura para acomodar el texto
+        objectName.setFont(textFont);
+        objectName.setForeground(Color.WHITE);
+
+        isShowingTextures = new JLabel("<html>Showing textures:<br></html>");
+        isShowingTextures.setBounds(0, 50, 200, 40); // Ajusta la altura
+        isShowingTextures.setFont(textFont);
+        isShowingTextures.setForeground(Color.WHITE);
+
+        isPaintedBlue = new JLabel("<html>Painted blue:<br></html>");
+        isPaintedBlue.setBounds(0, 90, 200, 40); // Ajusta la altura
+        isPaintedBlue.setFont(textFont);
+        isPaintedBlue.setForeground(Color.WHITE);
+
+        currentScale = new JLabel("<html>Current scale:<br>" + scaleFactor + "</html>");
+        currentScale.setBounds(0, 130, 200, 40); // Ajusta la altura
+        currentScale.setFont(textFont);
+        currentScale.setForeground(Color.WHITE);
+
+        currentPosition = new JLabel("<html>Current position:<br>x: " + centerTemporal.getPointX() + "<br>y: " + centerTemporal.getPointY() + "<br>z: " + centerTemporal.getPointZ() + "</html>");
+        currentPosition.setBounds(0, 170, 200, 60); // Ajusta la altura
+        currentPosition.setFont(textFont);
+        currentPosition.setForeground(Color.WHITE);
+
+        currentRotation = new JLabel("<html>Current rotation:<br>x: " + centerTemporal.getAngleX() + "<br>y: " + centerTemporal.getAngleY() + "<br>z: " + centerTemporal.getAngleZ() + "</html>");
+        currentRotation.setBounds(0, 230, 200, 60); // Ajusta la altura
+        currentRotation.setFont(textFont);
+        currentRotation.setForeground(Color.WHITE);
+
+        currentRotationInSite = new JLabel("<html>Current rotation in site:<br>x: " + center.getAngleX() + "<br>y: " + center.getAngleY() + "<br>z: " + center.getAngleZ() + "</html>");
+        currentRotationInSite.setBounds(0, 290, 200, 60); // Ajusta la altura
+        currentRotationInSite.setFont(textFont);
+        currentRotationInSite.setForeground(Color.WHITE);
+
+        add(objectName);
+        add(isShowingTextures);
+        add(isPaintedBlue);
+        add(currentScale);
+        add(currentPosition);
+        add(currentRotation);
+        add(currentRotationInSite);
+
+
+    }
+
+    private void updateLabels() {
+        objectName.setText("<html>Current object:<br>" + objectsList.get(index) + "</html>");
+        if (showTextures) {
+            isShowingTextures.setText("<html>Showing textures:<br> Yes </html>");
+        } else {
+            isShowingTextures.setText("<html>Showing textures:<br> No </html> ");
+        }
+        if (paintBlue) {
+            isPaintedBlue.setText("<html>Painted blue:<br> Yes </html> ");
+        } else {
+            isPaintedBlue.setText("<html>Painted blue:<br> No </html> ");
+        }
+
+        currentScale.setText("<html>Current scale:<br>" + scaleFactor + "</html>");
+        currentPosition.setText("<html>Current position:<br>x: " + centerTemporal.getPointX() + "<br>y: " + centerTemporal.getPointY() + "<br>z: " + centerTemporal.getPointZ() + "</html>");
+        currentRotation.setText("<html>Current rotation:<br>x: " + centerTemporal.getAngleX() + "<br>y: " + centerTemporal.getAngleY() + "<br>z: " + centerTemporal.getAngleZ() + "</html>");
+        currentRotationInSite.setText("<html>Current rotation in site:<br>x: " + center.getAngleX() + "<br>y: " + center.getAngleY() + "<br>z: " + center.getAngleZ() + "</html>");
+
+
     }
 
     private void changeObject(int index) {
@@ -448,18 +528,20 @@ public class GraphicsPanel extends JPanel {
         int interval = 20; // Intervalo entre las líneas de la cuadrícula
 
         // Dibujar líneas verticales
-        for (int x = 0; x <= PANEL_WIDTH; x += interval) {
+        for (int x = 150; x <= PANEL_WIDTH; x += interval) {
             drawLineDDA(x, 0, 0, x, PANEL_HEIGHT, 0, Color.LIGHT_GRAY);
         }
 
         // Dibujar líneas horizontales
         for (int y = 0; y <= PANEL_HEIGHT; y += interval) {
-            drawLineDDA(0, y, 0, PANEL_WIDTH, y, 0, Color.LIGHT_GRAY);
+            drawLineDDA(150, y, 0, PANEL_WIDTH, y, 0, Color.LIGHT_GRAY);
         }
     }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        updateLabels();
         if (showGrid) {
             drawGrid();
         }
