@@ -8,7 +8,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class GraphicsPanel extends JPanel {
@@ -20,9 +19,10 @@ public class GraphicsPanel extends JPanel {
     private Point3D centerTemporal;
     private static final int PANEL_WIDTH = 600;
     private static final int PANEL_HEIGHT = 590;
-    private double scaleFactor = 5.0; // Factor de escala inicial
+    private double scaleFactor = 20.0; // Factor de escala inicial
     private boolean showTextures = false; // Mostrar texturas inicialmente apagado
     private boolean paintBlue = false; // Pintar objeto de color celeste
+    private boolean showAxes = true; // Mostrar ejes inicialmente
     private ArrayList<String> objectsList;
     private ArrayList<String> texturesList;
     private int index;
@@ -43,7 +43,6 @@ public class GraphicsPanel extends JPanel {
         objectsList.add("miku01.obj");
         objectsList.add("Miku.obj");
         objectsList.add("len01.obj");
-        //objectsList.add("companionCube.obj");
 
         texturesList = new ArrayList<>();
         texturesList.add("companionCube_tex.png");
@@ -53,10 +52,9 @@ public class GraphicsPanel extends JPanel {
         texturesList.add("miku01_tex.png");
         texturesList.add("Miku_tex.png");
         texturesList.add("len01_tex.png");
-        //texturesList.add("companionCube_tex.png");
-
 
         index = 0;
+        hasTexture = true;
         // Inicializamos los centros
         center = new Point3D(0, 0, 0, 100);
         centerTemporal = new Point3D(0, 0, 0, 100);
@@ -69,7 +67,6 @@ public class GraphicsPanel extends JPanel {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
 
         addKeyListener(new KeyAdapter() {
             @Override
@@ -150,7 +147,6 @@ public class GraphicsPanel extends JPanel {
                             showTextures = true;
                             paintBlue = false; // Asegurar que no se pinten de celeste
                         }
-
                         break;
                     case KeyEvent.VK_3: // Pintar objeto de color celeste
                         paintBlue = true;
@@ -158,11 +154,21 @@ public class GraphicsPanel extends JPanel {
                         break;
                     case KeyEvent.VK_9:
                         index--;
+                        showTextures = false;
+                        paintBlue = false;
                         changeObject(index);
                         break;
                     case KeyEvent.VK_0:
                         index++;
+                        showTextures = false;
+                        paintBlue = false;
                         changeObject(index);
+                        break;
+                    case KeyEvent.VK_X: // Toggle axes visibility
+                        showAxes = !showAxes;
+                        break;
+                    case KeyEvent.VK_5:
+                        relocateObject();
                         break;
                 }
                 drawModel();
@@ -171,6 +177,7 @@ public class GraphicsPanel extends JPanel {
     }
 
     private void changeObject(int index) {
+        relocateObject();
         clearBuffer();
         objParser = new ObjParser();
         System.out.println(index);
@@ -201,12 +208,9 @@ public class GraphicsPanel extends JPanel {
         }
     }
 
-    public void putPixel(int x, int y, float z, Color c) {
+    public void putPixel(int x, int y, Color c) {
         if (x >= 0 && x < buffer.getWidth() && y >= 0 && y < buffer.getHeight()) {
-            if (z < zBuffer[x][y]) {
-                zBuffer[x][y] = z;
-                buffer.setRGB(x, y, c.getRGB());
-            }
+            buffer.setRGB(x, y, c.getRGB());
         }
     }
 
@@ -216,30 +220,31 @@ public class GraphicsPanel extends JPanel {
         return new Color(texture.getRGB(x, y));
     }
 
-    public void drawLineDDA(int x0, int y0, float z0, int x1, int y1, float z1, Color c) {
+    public void drawLineDDA(int x0, int y0, int x1, int y1, Color c) {
         int dx = x1 - x0;
         int dy = y1 - y0;
         int steps = Math.max(Math.abs(dx), Math.abs(dy));
 
         float xinc = (float) dx / steps;
         float yinc = (float) dy / steps;
-        float zinc = (z1 - z0) / steps;
 
         float x = x0;
         float y = y0;
-        float z = z0;
 
-        putPixel(Math.round(x), Math.round(y), z, c);
+        putPixel(Math.round(x), Math.round(y), c);
 
         for (int k = 1; k < steps; k++) {
             x += xinc;
             y += yinc;
-            z += zinc;
-            putPixel(Math.round(x), Math.round(y), z, c);
+            putPixel(Math.round(x), Math.round(y), c);
         }
     }
 
     private void drawModel() {
+        if (showAxes) {
+            drawAxes(); // Dibujar ejes si showAxes es verdadero
+        }
+
         List<float[]> vertices = objParser.getVertices();
         List<int[]> faces = objParser.getFaces();
         List<float[]> textures = objParser.getTextures();
@@ -266,20 +271,20 @@ public class GraphicsPanel extends JPanel {
             int[] p3Int = {(int) p3.getX(), (int) p3.getY()};
 
             if (paintBlue) {
-                drawTriangle(p1Int, p2Int, p3Int, v1[2], v2[2], v3[2], Color.CYAN);
+                drawTriangle(p1Int, p2Int, p3Int, Color.CYAN);
             } else if (showTextures) {
-                drawTexturedTriangle(p1Int, p2Int, p3Int, v1[2], v2[2], v3[2], t1, t2, t3);
+                drawTexturedTriangle(p1Int, p2Int, p3Int, t1, t2, t3);
             } else {
-                drawLineDDA(p1Int[0], p1Int[1], v1[2], p2Int[0], p2Int[1], v2[2], Color.WHITE);
-                drawLineDDA(p2Int[0], p2Int[1], v2[2], p3Int[0], p3Int[1], v3[2], Color.WHITE);
-                drawLineDDA(p3Int[0], p3Int[1], v3[2], p1Int[0], p1Int[1], v1[2], Color.WHITE);
+                drawLineDDA(p1Int[0], p1Int[1], p2Int[0], p2Int[1], Color.WHITE);
+                drawLineDDA(p2Int[0], p2Int[1], p3Int[0], p3Int[1], Color.WHITE);
+                drawLineDDA(p3Int[0], p3Int[1], p1Int[0], p1Int[1], Color.WHITE);
             }
         }
 
         repaint();
     }
 
-    private void drawTriangle(int[] p1, int[] p2, int[] p3, float z1, float z2, float z3, Color color) {
+    private void drawTriangle(int[] p1, int[] p2, int[] p3, Color color) {
         int minX = Math.min(p1[0], Math.min(p2[0], p3[0]));
         int maxX = Math.max(p1[0], Math.max(p2[0], p3[0]));
         int minY = Math.min(p1[1], Math.min(p2[1], p3[1]));
@@ -293,8 +298,7 @@ public class GraphicsPanel extends JPanel {
                 float gamma = barycentricCoords[2];
 
                 if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-                    float z = alpha * z1 + beta * z2 + gamma * z3;
-                    putPixel(x, y, z, color);
+                    putPixel(x, y, color);
                 }
             }
         }
@@ -368,7 +372,7 @@ public class GraphicsPanel extends JPanel {
         return rotated;
     }
 
-    private void drawTexturedTriangle(int[] p1, int[] p2, int[] p3, float z1, float z2, float z3, float[] t1, float[] t2, float[] t3) {
+    private void drawTexturedTriangle(int[] p1, int[] p2, int[] p3, float[] t1, float[] t2, float[] t3) {
         int minX = Math.min(p1[0], Math.min(p2[0], p3[0]));
         int maxX = Math.max(p1[0], Math.max(p2[0], p3[0]));
         int minY = Math.min(p1[1], Math.min(p2[1], p3[1]));
@@ -382,13 +386,55 @@ public class GraphicsPanel extends JPanel {
                 float gamma = barycentricCoords[2];
 
                 if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-                    float z = alpha * z1 + beta * z2 + gamma * z3;
                     float u = alpha * t1[0] + beta * t2[0] + gamma * t3[0];
                     float v = alpha * t1[1] + beta * t2[1] + gamma * t3[1];
-                    putPixel(x, y, z, getTextureColor(u, v));
+                    putPixel(x, y, getTextureColor(u, v));
                 }
             }
         }
+    }
+
+    public void relocateObject() {
+        // Reset the scale factor to its initial value
+        scaleFactor = 50.0;
+
+        // Reset the center and centerTemporal positions and angles to their initial values
+        center = new Point3D(0, 0, 0, 100);
+        centerTemporal = new Point3D(0, 0, 0, 100);
+
+        // Reset the visibility settings for textures, axes, and color painting
+        showTextures = false;
+        paintBlue = false;
+        showAxes = true;
+
+        // Clear the buffer and redraw the model
+        clearBuffer();
+        drawModel();
+    }
+
+
+    private void drawAxes() {
+        // Centro de los ejes
+        Point3D origin = new Point3D(0, 0, 0, 1);
+        Point2D origin2D = point3Dto2D(origin.getPointX(), origin.getPointY(), origin.getPointZ());
+
+        // Eje X (rojo)
+        Point3D xAxis = new Point3D(100, 0, 0, 1);
+        Point2D xAxis2D = point3Dto2D(xAxis.getPointX(), xAxis.getPointY(), xAxis.getPointZ());
+        drawLineDDA((int) origin2D.getX(), (int) origin2D.getY(),
+                (int) xAxis2D.getX(), (int) xAxis2D.getY(), Color.RED);
+
+        // Eje Y (verde)
+        Point3D yAxis = new Point3D(0, 100, 0, 1);
+        Point2D yAxis2D = point3Dto2D(yAxis.getPointX(), yAxis.getPointY(), yAxis.getPointZ());
+        drawLineDDA((int) origin2D.getX(), (int) origin2D.getY(),
+                (int) yAxis2D.getX(), (int) yAxis2D.getY(), Color.GREEN);
+
+        // Eje Z (azul)
+        Point3D zAxis = new Point3D(0, 0, 100, 1);
+        Point2D zAxis2D = point3Dto2D(zAxis.getPointX(), zAxis.getPointY(), zAxis.getPointZ());
+        drawLineDDA((int) origin2D.getX(), (int) origin2D.getY(),
+                (int) zAxis2D.getX(), (int) zAxis2D.getY(), Color.BLUE);
     }
 
     @Override
