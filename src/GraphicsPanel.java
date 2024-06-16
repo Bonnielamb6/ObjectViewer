@@ -46,7 +46,7 @@ public class GraphicsPanel extends JPanel {
         setBackground(Color.black);
 
         objectsList = new ArrayList<>();
-        objectsList.add("companionCube_scaled.obj");
+        objectsList.add("companionCube.obj");
         objectsList.add("sphere.obj");
         objectsList.add("cylinder.obj");
         objectsList.add("cone.obj");
@@ -71,7 +71,7 @@ public class GraphicsPanel extends JPanel {
 
         objParser = new ObjParser();
         try {
-            objParser.parse("companionCube_scaled.obj");
+            objParser.parse("companionCube.obj");
             texture = ImageIO.read(new File("companionCube_tex.png"));
             drawModel();
         } catch (IOException e) {
