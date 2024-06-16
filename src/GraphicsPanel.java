@@ -8,7 +8,6 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class GraphicsPanel extends JPanel {
@@ -20,9 +19,11 @@ public class GraphicsPanel extends JPanel {
     private Point3D centerTemporal;
     private static final int PANEL_WIDTH = 600;
     private static final int PANEL_HEIGHT = 590;
-    private double scaleFactor = 5.0; // Factor de escala inicial
+    private double scaleFactor = 20.0; // Factor de escala inicial
     private boolean showTextures = false; // Mostrar texturas inicialmente apagado
     private boolean paintBlue = false; // Pintar objeto de color celeste
+    private boolean showGrid = true;
+    private boolean showAxes = true; // Mostrar ejes inicialmente
     private ArrayList<String> objectsList;
     private ArrayList<String> texturesList;
     private int index;
@@ -36,14 +37,13 @@ public class GraphicsPanel extends JPanel {
         setBackground(Color.black);
 
         objectsList = new ArrayList<>();
-        objectsList.add("companionCube.obj");
+        objectsList.add("companionCube_scaled.obj");
         objectsList.add("sphere.obj");
         objectsList.add("cylinder.obj");
         objectsList.add("cone.obj");
         objectsList.add("miku01.obj");
         objectsList.add("Miku.obj");
         objectsList.add("len01.obj");
-        //objectsList.add("companionCube.obj");
 
         texturesList = new ArrayList<>();
         texturesList.add("companionCube_tex.png");
@@ -53,23 +53,21 @@ public class GraphicsPanel extends JPanel {
         texturesList.add("miku01_tex.png");
         texturesList.add("Miku_tex.png");
         texturesList.add("len01_tex.png");
-        //texturesList.add("companionCube_tex.png");
-
 
         index = 0;
+        hasTexture = true;
         // Inicializamos los centros
         center = new Point3D(0, 0, 0, 100);
         centerTemporal = new Point3D(0, 0, 0, 100);
 
         objParser = new ObjParser();
         try {
-            objParser.parse("companionCube.obj");
+            objParser.parse("companionCube_scaled.obj");
             texture = ImageIO.read(new File("companionCube_tex.png"));
             drawModel();
         } catch (IOException e) {
             e.printStackTrace();
         }
-
 
         addKeyListener(new KeyAdapter() {
             @Override
@@ -150,7 +148,6 @@ public class GraphicsPanel extends JPanel {
                             showTextures = true;
                             paintBlue = false; // Asegurar que no se pinten de celeste
                         }
-
                         break;
                     case KeyEvent.VK_3: // Pintar objeto de color celeste
                         paintBlue = true;
@@ -158,11 +155,22 @@ public class GraphicsPanel extends JPanel {
                         break;
                     case KeyEvent.VK_9:
                         index--;
+                        showTextures = false;
+                        paintBlue = false;
                         changeObject(index);
                         break;
                     case KeyEvent.VK_0:
                         index++;
+                        showTextures = false;
+                        paintBlue = false;
                         changeObject(index);
+                        break;
+                    case KeyEvent.VK_X: // Toggle axes visibility
+                        showAxes = !showAxes;
+                        showGrid = !showGrid;
+                        break;
+                    case KeyEvent.VK_5:
+                        relocateObject();
                         break;
                 }
                 drawModel();
@@ -171,6 +179,7 @@ public class GraphicsPanel extends JPanel {
     }
 
     private void changeObject(int index) {
+        relocateObject();
         clearBuffer();
         objParser = new ObjParser();
         System.out.println(index);
@@ -240,6 +249,10 @@ public class GraphicsPanel extends JPanel {
     }
 
     private void drawModel() {
+        if (showAxes) {
+            drawAxes(); // Dibujar ejes si showAxes es verdadero
+        }
+
         List<float[]> vertices = objParser.getVertices();
         List<int[]> faces = objParser.getFaces();
         List<float[]> textures = objParser.getTextures();
@@ -391,9 +404,65 @@ public class GraphicsPanel extends JPanel {
         }
     }
 
+    public void relocateObject() {
+        // Reset the scale factor to its initial value
+        scaleFactor = 50.0;
+
+        // Reset the center and centerTemporal positions and angles to their initial values
+        center = new Point3D(0, 0, 0, 100);
+        centerTemporal = new Point3D(0, 0, 0, 100);
+
+        // Reset the visibility settings for textures, axes, and color painting
+        showTextures = false;
+        paintBlue = false;
+        showAxes = true;
+
+        // Clear the buffer and redraw the model
+        clearBuffer();
+        drawModel();
+    }
+
+
+    private void drawAxes() {
+        // Centro de los ejes (mitad de la pantalla)
+        Point3D origin = new Point3D(0, 0, 0, 1);
+        Point2D origin2D = new Point2D.Double(PANEL_WIDTH / 2, PANEL_HEIGHT / 2);
+
+        // Eje Y (verde): desde la parte superior central hasta el centro
+        Point2D yAxis2D = new Point2D.Double(PANEL_WIDTH / 2, 0);
+        drawLineDDA((int) origin2D.getX(), (int) origin2D.getY(), 0,
+                (int) yAxis2D.getX(), (int) yAxis2D.getY(), 0, Color.GREEN);
+
+        // Eje X (rojo): desde el lado derecho central hasta el centro
+        Point2D xAxis2D = new Point2D.Double(PANEL_WIDTH, PANEL_HEIGHT / 2);
+        drawLineDDA((int) origin2D.getX(), (int) origin2D.getY(), 0,
+                (int) xAxis2D.getX(), (int) xAxis2D.getY(), 0, Color.RED);
+
+        // Eje Z (azul): en diagonal entre el centro de la pantalla y la esquina superior derecha
+        Point2D zAxis2D = new Point2D.Double(PANEL_WIDTH, 0);
+        drawLineDDA((int) origin2D.getX(), (int) origin2D.getY(), 0,
+                (int) zAxis2D.getX(), (int) zAxis2D.getY(), 0, Color.BLUE);
+    }
+
+    private void drawGrid() {
+        int interval = 20; // Intervalo entre las líneas de la cuadrícula
+
+        // Dibujar líneas verticales
+        for (int x = 0; x <= PANEL_WIDTH; x += interval) {
+            drawLineDDA(x, 0, 0, x, PANEL_HEIGHT, 0, Color.LIGHT_GRAY);
+        }
+
+        // Dibujar líneas horizontales
+        for (int y = 0; y <= PANEL_HEIGHT; y += interval) {
+            drawLineDDA(0, y, 0, PANEL_WIDTH, y, 0, Color.LIGHT_GRAY);
+        }
+    }
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        if (showGrid) {
+            drawGrid();
+        }
         g.drawImage(buffer, 0, 0, this);
     }
 
