@@ -496,6 +496,7 @@ public class GraphicsPanel extends JPanel {
         showTextures = false;
         paintBlue = false;
         showAxes = true;
+        showGrid = true;
 
         // Clear the buffer and redraw the model
         clearBuffer();
@@ -544,6 +545,9 @@ public class GraphicsPanel extends JPanel {
         updateLabels();
         if (showGrid) {
             drawGrid();
+        }
+        if (showAxes) {
+            drawAxes(); 
         }
         g.drawImage(buffer, 0, 0, this);
     }
